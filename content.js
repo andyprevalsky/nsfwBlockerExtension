@@ -1,4 +1,4 @@
-
+let ngrok = "http://localhost:8080/classify"
 async function coverImages(listOfImages, probList) {
     for (i in probList) {
         if (probList[i][0] > .5) {
@@ -55,7 +55,7 @@ async function send_image(listOfImages, blobs) {
         count += 1
     }
     var request = new XMLHttpRequest();
-    request.open("POST", "https://03064e3a.ngrok.io/classify");
+    request.open("POST", ngrok);
     request.responseType = "json"//IDK
     request.onload = function(e) {
        coverImages(listOfImages, this.response)
@@ -165,18 +165,11 @@ function injectFullScreenCover() {
     div.style.flexDirection = "column";
     
     div.innerHTML = `
-        <p style="font-size: 30px">We covered up this part of the video because we think this can cause a seizure.</p>
+        <p style="font-size: 30px">This Content is Unsafe and has been Blocked</p>
         <canvas id="canvas" style="width:240px;height:180px;"></canvas>
         <p id="rating" style="font-size: 20px"></p>
         <br>
     `
-    
-    const a = document.createElement("A");
-    a.onclick = hideFullScreenCover;
-    a.href = "javascript:void(0)";
-    a.style.fontSize = "20px";
-    a.textContent = "Please click here to disable this.";
-    div.appendChild(a);
     
     document.body.appendChild(div);
 }
@@ -188,9 +181,16 @@ function disableFullScreenCover() {
     hideFullScreenCover();
 }
 
-function showFullScreenCover(){
+function updateCover(video) {
+    document.getElementById("fullScreenCover").style.width = video.style.width;
+    document.getElementById("fullScreenCover").style.height = video.style.height;
+    document.getElementById("fullScreenCover").style.left = video.getBoundingClientRect().x.toString() + "px";
+    document.getElementById("fullScreenCover").style.top = video.getBoundingClientRect().y.toString() + "px";
+}
+
+function showFullScreenCover(video){
     if(document.getElementById("fullScreenCover").dataset.disabled) return;
-    document.getElementById("fullScreenCover").style.display = "flex";
+    document.getElementById("fullScreenCover").style.display = "flex"
 }
 
 function hideFullScreenCover() {
@@ -277,31 +277,34 @@ class VideoAnalyzer {
         this.barCtx.fillRect(this.video.currentTime * barWidth, 0, 2, 20);
     }
 
-    setRating(second, rating) {
-        this.ratings[second] = rating;
+    setRating(second, prob) {
+        this.ratings[second] = prob
     }
 
     timerCallback () {
         if (this.shadow.ended) return
+        updateCover(this.video)
         this.counter++;
         const markedFrame = this.getShadowFrame();
         const frame = markedFrame.data.slice(0);
         const shadowSecond = Math.floor(this.shadow.currentTime) + 3;
         const videoSecond = Math.floor(this.video.currentTime)
 
+        let global = this
         if(!this.ratings[shadowSecond]) {
-            var formData = new FormData();
-            formData.append(0, frame);
-            var request = new XMLHttpRequest();
-            request.open("POST", "https://03064e3a.ngrok.io/classify");
-            request.responseType = "json"//IDK
-            request.onload = function(e) {
-                setRating(shadowSecond, this.response[0][0]);
-            }
-            request.send(formData);
+            global.setRating(shadowSecond, .9)
+            // var formData = new FormData();
+            // formData.append(0, frame);
+            // var request = new XMLHttpRequest();
+            // request.open("POST", ngrok);
+            // request.responseType = "json"//IDK
+            // request.onload = function(e) {
+            //     global.setRating(shadowSecond, this.response[0][0]);
+            // }
+            // request.send(formData);
         }
 
-        if (this.ratings[videoSecond] !== undefined && this.ratings[videoSecond] > .4) showFullScreenCover();
+        if (this.ratings[videoSecond] !== undefined && this.ratings[videoSecond] > .4) showFullScreenCover(this.video);
         else hideFullScreenCover();
 
         this.showBar();

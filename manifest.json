@@ -1,0 +1,15 @@
+{
+    "manifest_version": 2,
+   
+    "name": "Modify CSS and HTML",
+    "version": "0.1.0",
+    "description": "nsfw blocker",
+   
+    "content_scripts": [{
+      "css": ["styles.css"],
+      "js": ["content.js"],
+      "matches": ["<all_urls>"]
+    }],
+    "web_accessible_resources": ["kitty.jpg"]
+   
+  }

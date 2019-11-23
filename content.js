@@ -1,4 +1,4 @@
-let ngrok = "http://localhost:8080/classify"
+let ngrok = "https://085398a5.ngrok.io/classify"
 async function coverImages(listOfImages, probList) {
     for (i in probList) {
         if (probList[i][0] > .5) {
@@ -204,6 +204,7 @@ class VideoAnalyzer {
         this.video = videoElem; //TODO: clone video off screen instead
         this.shadow = this.video;
         this.shadow.muted = true;
+        this.seen = new Set()
 
         this.canvas = document.createElement("canvas");
         this.canvas.width = 480;
@@ -246,7 +247,7 @@ class VideoAnalyzer {
 
     getShadowFrame() {
         this.ctx.drawImage(this.shadow, 0, 0, 480, 360);
-        return this.ctx.getImageData(0, 0, 480, 360);
+        return this.canvas.toDataURL();
     }
 
     startAnalysis() {
@@ -261,11 +262,11 @@ class VideoAnalyzer {
     showBar() {
         const barWidth = 600 / this.shadow.duration;
         for(let i = 0; i < this.shadow.duration; i++){
-            let color = "green";
-            if(!this.ratings[i] || (this.ratings[i] > .1 && this.ratings[i] < .3)) {
-                color = "blue";
+            let color = "blue";
+            if(this.ratings[i] > .3) {
+                color = "green";
             }else{
-                if(this.ratings[i] > .3){
+                if(this.ratings[i] < .31){
                     color = "red";
                 }
             }
@@ -278,36 +279,47 @@ class VideoAnalyzer {
     }
 
     setRating(second, prob) {
+
         this.ratings[second] = prob
+        console.log(this.ratings)
     }
 
     timerCallback () {
         if (this.shadow.ended) return
         updateCover(this.video)
         this.counter++;
-        const markedFrame = this.getShadowFrame();
-        const frame = markedFrame.data.slice(0);
+        const src = this.getShadowFrame();
         const shadowSecond = Math.floor(this.shadow.currentTime) + 3;
         const videoSecond = Math.floor(this.video.currentTime)
-
         let global = this
-        if(!this.ratings[shadowSecond]) {
-            global.setRating(shadowSecond, .9)
-            var formData = new FormData();
-            let data = new Blob(frame, {type: 'image/png'});
-            formData.append('0', data);
-
-            var request = new XMLHttpRequest();
-            request.open("POST", ngrok);
-            request.responseType = "json"//IDK
-            request.onload = function(e) {
-                global.setRating(shadowSecond, this.response[0][0]);
-            }
-            request.send(formData);
+        if(!(this.seen.has(shadowSecond))) {
+            this.seen.add(shadowSecond)
+            console.log(this.seen)
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', src, true);
+            xhr.responseType = 'blob'
+            xhr.onload = function(e) {
+                if (this.status == 200) {
+                    var blob = new Blob([this.response], {type: 'image/png'})
+                    var formData = new FormData();
+                    formData.append('0', blob);
+                    
+                    var request = new XMLHttpRequest();
+                    request.open("POST", ngrok);
+                    request.responseType = "json"//IDK
+                    request.onload = function(e) {
+                        global.setRating(shadowSecond, this.response[0][0]);
+                    }
+                    request.send(formData);
+                    
+                }
+            };
+            xhr.send();
         }
-
-        if (this.ratings[videoSecond] !== undefined && this.ratings[videoSecond] > .4) showFullScreenCover(this.video);
+        if (this.ratings[videoSecond] !== undefined && this.ratings[videoSecond] < .3) showFullScreenCover(this.video);
+        
         else hideFullScreenCover();
+
 
         this.showBar();
 

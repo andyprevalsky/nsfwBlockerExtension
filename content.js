@@ -293,15 +293,17 @@ class VideoAnalyzer {
         let global = this
         if(!this.ratings[shadowSecond]) {
             global.setRating(shadowSecond, .9)
-            // var formData = new FormData();
-            // formData.append(0, frame);
-            // var request = new XMLHttpRequest();
-            // request.open("POST", ngrok);
-            // request.responseType = "json"//IDK
-            // request.onload = function(e) {
-            //     global.setRating(shadowSecond, this.response[0][0]);
-            // }
-            // request.send(formData);
+            var formData = new FormData();
+            let data = new Blob(frame, {type: 'image/png'});
+            formData.append('0', data);
+
+            var request = new XMLHttpRequest();
+            request.open("POST", ngrok);
+            request.responseType = "json"//IDK
+            request.onload = function(e) {
+                global.setRating(shadowSecond, this.response[0][0]);
+            }
+            request.send(formData);
         }
 
         if (this.ratings[videoSecond] !== undefined && this.ratings[videoSecond] > .4) showFullScreenCover(this.video);
